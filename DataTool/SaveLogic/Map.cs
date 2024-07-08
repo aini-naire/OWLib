@@ -1,4 +1,4 @@
-﻿using System.IO;
+using System.IO;
 using DataTool.Flag;
 using TankLib;
 using TankLib.ExportFormats;
@@ -9,6 +9,7 @@ using static DataTool.Helper.STUHelper;
 using static DataTool.Helper.Logger;
 using System;
 using DataTool.DataModels;
+using TankLib.Math;
 
 namespace DataTool.SaveLogic {
     public static class Map {
@@ -29,11 +30,13 @@ namespace DataTool.SaveLogic {
             public teMapPlaceableData Lights;
             public teMapPlaceableData Sounds;
             public teMapPlaceableData Effects;
+            public STU_DABD6A9B Sun;
+            public STU_70BAB99C Sky;
 
             public OverwatchMap(
                 string name, FindLogic.Combo.ComboInfo info, teMapPlaceableData singleModels,
                 teMapPlaceableData modelGroups, teMapPlaceableData models, teMapPlaceableData entities,
-                teMapPlaceableData lights, teMapPlaceableData sounds, teMapPlaceableData effects) {
+                teMapPlaceableData lights, teMapPlaceableData sounds, teMapPlaceableData effects, STU_DABD6A9B sun, STU_70BAB99C sky) {
                 Name = name;
                 Info = info;
 
@@ -44,6 +47,8 @@ namespace DataTool.SaveLogic {
                 Lights = lights ?? new teMapPlaceableData();
                 Sounds = sounds ?? new teMapPlaceableData();
                 Effects = effects ?? new teMapPlaceableData();
+                Sun = sun ?? new STU_DABD6A9B();
+                Sky = sky ?? new STU_70BAB99C();
             }
 
             private string GetModelLookMatPath(FindLogic.Combo.ModelAsset modelInfo, FindLogic.Combo.ModelLookAsset modelLookAsset) {
@@ -57,7 +62,7 @@ namespace DataTool.SaveLogic {
             public void Write(Stream output) {
                 using (BinaryWriter writer = new BinaryWriter(output)) {
                     writer.Write((ushort) 2); // version major
-                    writer.Write((ushort) 1); // version minor
+                    writer.Write((ushort) 2); // version minor
 
                     if (Name.Length == 0) {
                         writer.Write((byte) 0);
@@ -253,6 +258,15 @@ namespace DataTool.SaveLogic {
                         
                         // todo: who did this - zingy
                     }
+
+                    // Extension 2.2 - Map Environment
+                    writer.Write(Sky.m_EAE71612.ToString());
+                    writer.Write(Sky.m_FF76B5BA.ToString());
+
+                    writer.Write(Sun.m_color);
+                    writer.Write(Sun.m_A1C4B45C);
+                    writer.Write(GetSunBlenderRotation(Sun.m_rotation));
+
                 }
             }
         }
@@ -276,11 +290,43 @@ namespace DataTool.SaveLogic {
                 var variantModeInfo = mapHeader.m_D97BC44F[i];
                 var variantResultingMap = mapHeader.m_78715D57[i];
                 var variantGUID = variantResultingMap.m_BF231F12;
+                STU_70BAB99C sky = null;
+                STU_DABD6A9B sun = null;
 
                 using (Stream stream = OpenFile(variantGUID)) {
                     if (stream == null) {
                         // not shipping
                         continue;
+                    }
+
+                    using (BinaryReader reader = new BinaryReader(stream)) {
+                        const long lightingDataOffset = 160;
+                        stream.Position = lightingDataOffset + 228;
+                        ushort envScenarioCount = reader.ReadUInt16();
+                        stream.Position = lightingDataOffset + 240;
+                        uint envScenarioOffset = reader.ReadUInt32();
+                        stream.Position = lightingDataOffset + envScenarioOffset;
+
+                        for (int j = 0; j < envScenarioCount; j++) {
+                            stream.Position += 40; // 5x u64
+                            ulong envState = reader.ReadUInt64();
+                            STU_CD1ED5FE envStateInst = GetInstance<STU_CD1ED5FE>(envState);
+
+                            // Sky
+                            if (envStateInst.m_B3F27D37.TryGetValue(7, out var skyInst)) {
+                                sky = (STU_70BAB99C) skyInst;
+                            }
+
+                            // Color Grading
+                            if (envStateInst.m_B3F27D37.TryGetValue(3, out var grading)) {
+                                var gradingAspect = (STU_40181BF1) grading;
+                            }
+
+                            // Sun
+                            if (envStateInst.m_B3F27D37.TryGetValue(6, out var sunInst)) {
+                                sun = (STU_DABD6A9B) sunInst;
+                            }
+                        }
                     }
                 }
 
@@ -316,7 +362,7 @@ namespace DataTool.SaveLogic {
                     FindLogic.Combo.Find(info, sequence.Header.Effect);
                 }
 
-                OverwatchMap exportMap = new OverwatchMap(name, info, placeableSingleModels, placeableModelGroups, placeableModel, placeableEntities, placeableLights, placeableSounds, placeableEffects);
+                    OverwatchMap exportMap = new OverwatchMap(name, info, placeableSingleModels, placeableModelGroups, placeableModel, placeableEntities, placeableLights, placeableSounds, placeableEffects, sun, sky);
                 using (Stream outputStream = File.OpenWrite(Path.Combine(mapPath, $"{variantName}.{exportMap.Extension}"))) {
                     outputStream.SetLength(0);
                     exportMap.Write(outputStream);
@@ -384,6 +430,19 @@ namespace DataTool.SaveLogic {
             Combo.SaveAllSoundFiles(flags, Path.Combine(mapPath, "Sound"), context);
 
             LoudLog("\tDone");
+        }
+
+        public static teVec3 GetSunBlenderRotation(teQuat rotation) {
+            teQuat zUp = new teQuat(rotation.X, -rotation.Z, rotation.Y, rotation.W);
+            teVec3 euler = zUp.ToEulerAngles();
+
+            // :mentalcat:
+            euler.X *= 57.295779513f;
+            euler.X -= 90f;
+            euler.Y *= 57.295779513f;
+            euler.Z *= 57.295779513f;
+
+            return euler;
         }
 
         public static string GetVariantName(STU_71B2D30A variantModeInfo, STU_7FB10A24 variantResultingMap) {
