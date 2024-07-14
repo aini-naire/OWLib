@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using System.IO;
+using System.IO.Compression;
 using System.Linq;
 using System.Numerics;
 using TankLib.Chunks;
@@ -71,7 +72,8 @@ namespace TankLib.ExportFormats {
                 allSubmeshes.AddRange(m_streamedLods.m_renderMesh.Submeshes.Select(x => new TempSubmesh(x, streamedModel)));
             }
 
-            using (BinaryWriter writer = new BinaryWriter(stream)) {
+            MemoryStream memStream = new MemoryStream();
+            using (BinaryWriter writer = new BinaryWriter(memStream)) {
                 writer.Write((ushort)2);
                 writer.Write((ushort)0);
                 if (ModelLookFileName == null) {   // mat ref
@@ -256,6 +258,9 @@ namespace TankLib.ExportFormats {
                         writer.Write(worldTranslation);
                         writer.Write(worldOri);
                     }
+                }
+                using (GZipStream compressStream =  new GZipStream(stream, CompressionMode.Compress)) {
+                    compressStream.Write(memStream.GetBuffer(), 0, (int)memStream.Length);
                 }
             }
         }
