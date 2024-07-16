@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
@@ -286,6 +286,7 @@ namespace DataTool.FindLogic {
             public List<ModelMaterial> m_materials = new List<ModelMaterial>(); // id, guid
 
             public ModelLookAsset(ulong guid) : base(guid) { }
+            public List<uint> GeoSets = new List<uint>();
         }
 
         public class MaterialAsset : ComboAsset {
@@ -805,6 +806,13 @@ namespace DataTool.FindLogic {
 
                     ModelLookAsset modelLookInfo = new ModelLookAsset(guid);
                     info.m_modelLooks[guid] = modelLookInfo;
+
+                    if (modelLook.m_33DA887B != null) {
+                        foreach (var geoSetGUID in modelLook.m_33DA887B) {
+                            modelLookInfo.GeoSets.Add(teResourceGUID.Index(geoSetGUID));
+                        }
+                    }
+
 
                     ComboContext modelLookContext = context.Clone();
                     modelLookContext.ModelLook = guid;

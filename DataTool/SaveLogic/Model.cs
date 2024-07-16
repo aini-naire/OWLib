@@ -1,4 +1,4 @@
-﻿using System.IO;
+using System.IO;
 using System.Linq;
 using TankLib;
 using TankLib.ExportFormats;
@@ -34,6 +34,10 @@ namespace DataTool.SaveLogic {
                         writer.Write(modelLookMaterial.m_key);
                         writer.Write(Path.Combine("..", "..", "Materials", materialInfo.GetNameIndex() + $".{Extension}"));
                     }
+                    writer.Write(ModelLookInfo.GeoSets.LongCount());
+                    foreach (var geoSet in ModelLookInfo.GeoSets) {
+                        writer.Write(geoSet);
+                    }
                 }
             }
         }
@@ -42,7 +46,7 @@ namespace DataTool.SaveLogic {
             public string Extension => "owmat";
 
             public const ushort VersionMajor = 3;
-            public const ushort VersionMinor = 0;
+            public const ushort VersionMinor = 1;
 
             public enum OWMatType : uint {
                 Material = 0,

@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
@@ -38,7 +38,7 @@ namespace TankLib.Chunks {
             public fixed float Unknown1_A[4];// 12
             public fixed float Unknown1_B[3];// 28
 
-            public long m_40; // 40 -> 40
+            public long m_geoSets; // 40 -> 40
             public long m_48; // n/a -> 48
 
             public float Unknown3; // 48 -> 56
@@ -168,6 +168,8 @@ namespace TankLib.Chunks {
             // ReSharper disable once InconsistentNaming
             public uint[] IDs;
 
+            public long GeoSet;
+
             /// <summary>Vertex bone indices</summary>
             public ushort[][] BoneIndices;
 
@@ -194,6 +196,7 @@ namespace TankLib.Chunks {
                 Normals = new teVec3[submeshDescriptor.VerticesToDraw];
                 Tangents = new teVec4[submeshDescriptor.VerticesToDraw];
                 IDs = new uint[submeshDescriptor.VerticesToDraw];
+                GeoSet = submeshDescriptor.m_geoSets;
 
                 Indices = new ushort[submeshDescriptor.IndicesToDraw];
 

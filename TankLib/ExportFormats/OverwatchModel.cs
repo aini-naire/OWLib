@@ -8,6 +8,7 @@ using TankLib.Chunks;
 using TankLib.Helpers;
 using TankLib.Math;
 using TankLib.STU.Types;
+using static TankLib.Chunks.teModelChunk_RenderMesh;
 
 namespace TankLib.ExportFormats {
     public class StreamingLodsInfo {
@@ -58,10 +59,10 @@ namespace TankLib.ExportFormats {
             teModelChunk_Skeleton skeleton = _data.GetChunk<teModelChunk_Skeleton>();
             teModelChunk_Cloth cloth = _data.GetChunk<teModelChunk_Cloth>();
             teModelChunk_STU stu = _data.GetChunk<teModelChunk_STU>();
+            teModelChunk_Model model = _data.GetChunk<teModelChunk_Model>();
 
             var allSubmeshes = new List<LoadedSubmesh>();
             if (renderMesh?.Submeshes != null) {
-                var model = _data.GetChunk<teModelChunk_Model>();
                 allSubmeshes.AddRange(renderMesh.Submeshes.Select(x => new LoadedSubmesh(x, model)));
             }
 
@@ -77,7 +78,7 @@ namespace TankLib.ExportFormats {
             MemoryStream memStream = new MemoryStream();
             using (BinaryWriter writer = new BinaryWriter(memStream)) {
                 writer.Write((ushort)2);
-                writer.Write((ushort)0);
+                writer.Write((ushort)1);
                 if (ModelLookFileName == null) {   // mat ref
                     writer.Write((byte)0);
                 } else {
@@ -269,6 +270,20 @@ namespace TankLib.ExportFormats {
                         writer.Write(worldTranslation);
                         writer.Write(worldOri);
                     }
+
+                    
+                    }
+                if (model.GeoSets != null) {
+                    writer.Write(model.GeoSets.LongCount());
+                    foreach (var geoSet in model.GeoSets) {
+                        writer.Write(geoSet);
+                    }
+                } else {
+                    writer.Write((long)0);
+                }
+                foreach (LoadedSubmesh loadedSubmesh in submeshesToWrite) {
+                    var submesh = loadedSubmesh.m_submesh;
+                    writer.Write(submesh.GeoSet);
                 }
                 using (GZipStream compressStream =  new GZipStream(stream, CompressionMode.Compress)) {
                     compressStream.Write(memStream.GetBuffer(), 0, (int)memStream.Length);

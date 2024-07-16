@@ -1,4 +1,4 @@
-﻿using System.Collections.Generic;
+using System.Collections.Generic;
 using System.IO;
 using System.Runtime.InteropServices;
 
@@ -20,7 +20,7 @@ namespace TankLib.Chunks {
             public fixed byte Padding[20];
 
             public ushort MaterialCount; // 76->96
-            public byte m_98;
+            public byte m_supportedGeoSetCount;
             public byte m_99;
             public byte m_100;
             public ulong m_104;
@@ -31,6 +31,8 @@ namespace TankLib.Chunks {
 
         public ulong[] Materials;
 
+        public uint[] GeoSets;
+
         public void Parse(Stream input) {
             using (BinaryReader reader = new BinaryReader(input)) {
                 Header = reader.Read<ModelHeader>();
@@ -38,6 +40,11 @@ namespace TankLib.Chunks {
                 if (Header.MaterialOffset > 0) {
                     input.Position = Header.MaterialOffset;
                     Materials = reader.ReadArray<ulong>(Header.MaterialCount);
+                }
+
+                if (Header.m_0 > 0) {
+                    input.Position = Header.m_0;
+                    GeoSets = reader.ReadArray<uint>(Header.m_supportedGeoSetCount);
                 }
             }
         }
