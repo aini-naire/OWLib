@@ -10,6 +10,7 @@ using static DataTool.Helper.Logger;
 using System;
 using DataTool.DataModels;
 using TankLib.Math;
+using System.Text.RegularExpressions;
 
 namespace DataTool.SaveLogic {
     public static class Map {
@@ -260,8 +261,12 @@ namespace DataTool.SaveLogic {
                     }
 
                     // Extension 2.2 - Map Environment
-                    writer.Write(Sky.m_EAE71612.ToString());
-                    writer.Write(Sky.m_FF76B5BA.ToString());
+                    FindLogic.Combo.ModelAsset skyModelInfo = Info.m_models[Sky.m_EAE71612];
+                    FindLogic.Combo.ModelLookAsset skyModelLookInfo = Info.m_modelLooks[Sky.m_FF76B5BA];
+                    string skyModelFile = GetModelPath(skyModelInfo);
+                    string skyModelLookFile = GetModelLookMatPath(skyModelInfo, skyModelLookInfo);
+                    writer.Write(skyModelFile);
+                    writer.Write(skyModelLookFile);
 
                     writer.Write(Sun.m_color);
                     writer.Write(Sun.m_A1C4B45C);
@@ -339,6 +344,10 @@ namespace DataTool.SaveLogic {
                 FindLogic.Combo.Find(info, variantResultingMap.m_0342E00E?.m_7F5B54B2);
                 FindLogic.Combo.Find(info, variantResultingMap.m_0342E00E?.m_announcerWelcome);
                 FindLogic.Combo.Find(info, variantResultingMap.m_0342E00E?.m_musicTease);
+
+                FindLogic.Combo.Find(info, sky.m_EAE71612);
+                FindLogic.Combo.Find(info, sky.m_FF76B5BA, null,
+                                     new FindLogic.Combo.ComboContext { Model = sky.m_EAE71612 });
 
                 // todo: announcer save doesnt work properly
                 // at least for wrath of the bride...
