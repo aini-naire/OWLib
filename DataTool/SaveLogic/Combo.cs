@@ -261,9 +261,7 @@ namespace DataTool.SaveLogic {
             }
 
             // todo: broken af with mythic
-            return;
-
-            Effect.OverwatchAnimationEffect output = new Effect.OverwatchAnimationEffect(context.m_info, animationEffect, svceLines, animationInfo, model);
+            Effect.OverwatchAnimationEffect output = new Effect.OverwatchAnimationEffect(context.m_info, animationEffect, animationInfo, model);
             string animationEffectFile =
                 Path.Combine(animationEffectDir, $"{animationInfo.GetNameIndex()}.{output.Extension}");
 
@@ -272,6 +270,17 @@ namespace DataTool.SaveLogic {
             using (Stream fileStream = new FileStream(animationEffectFile, FileMode.Create)) {
                 fileStream.SetLength(0);
                 output.Write(fileStream);
+            }
+
+            Effect.OverwatchEffect effectOutput = new Effect.OverwatchEffect(context.m_info, animationEffect, svceLines);
+            string effectFile =
+                Path.Combine(animationEffectDir, $"{animationEffect.GetNameIndex()}.{effectOutput.Extension}");
+
+            CreateDirectoryFromFile(effectFile);
+
+            using (Stream fileStream = new FileStream(effectFile, FileMode.Create)) {
+                fileStream.SetLength(0);
+                effectOutput.Write(fileStream);
             }
         }
 
@@ -345,7 +354,7 @@ namespace DataTool.SaveLogic {
 
             SaveEffectExtras(flags, effectDirectory, context, effectInfo.Effect, out Dictionary<ulong, HashSet<FindLogic.Combo.VoiceLineInstanceInfo>> svceLines);
 
-            return; // this is still crashing mythics bitch. dont remove
+            //return; // this is still crashing mythics bitch. dont remove
             Effect.OverwatchEffect output = new Effect.OverwatchEffect(context.m_info, effectInfo, svceLines);
             string effectFile = Path.Combine(effectDirectory, $"{effectInfo.GetNameIndex()}.{output.Extension}");
             CreateDirectoryFromFile(effectFile);

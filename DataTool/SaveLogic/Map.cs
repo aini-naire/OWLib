@@ -251,13 +251,28 @@ namespace DataTool.SaveLogic {
                         }
                     }
 
+                    writer.Write(Effects.Header.PlaceableCount); // nr Sounds
+
                     // Extension 1.3 - Effects
                     foreach (IMapPlaceable mapPlaceable in Effects.Placeables ?? Array.Empty<IMapPlaceable>()) {
                         var effect = (teMapPlaceableEffect) mapPlaceable;
                         FindLogic.Combo.Find(Info, effect.Header.Effect);
-                        // todo: wtf
-                        
-                        // todo: who did this - zingy
+
+                        writer.Write(effect.Header.Translation);
+                        writer.Write(effect.Header.Scale);
+                        writer.Write(effect.Header.Rotation);
+                        var isAnimEffect = false;
+                        if (!Info.m_effects.TryGetValue(effect.Header.Effect, out var effectInfo)) {
+                            isAnimEffect = true;
+                            if (!Info.m_animationEffects.TryGetValue(effect.Header.Effect, out effectInfo)) {
+                                continue;
+                            }
+                        }
+
+                        writer.Write(effectInfo.Effect.HasModels(Info) ? (byte) 1 : (byte) 0);
+                        writer.Write(effectInfo.Effect.HasSounds(Info) ? (byte) 1 : (byte) 0);
+
+                        writer.Write($@"{(isAnimEffect ? "AnimationEffects" : "Effects")}\{effectInfo.GetName()}\{effectInfo.GetNameIndex()}.oweffect");
                     }
 
                     // Extension 2.2 - Map Environment

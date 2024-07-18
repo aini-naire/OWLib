@@ -1,6 +1,7 @@
-﻿using System.Collections.Generic;
+using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 using System.IO;
+using System.Linq;
 using DataTool.FindLogic;
 using TankLib;
 using TankLib.Chunks;
@@ -112,23 +113,24 @@ namespace DataTool.Helper {
             effect.NECEs.Add(newInfo);
         }
 
-        /*public static void AddRPCE(EffectInfo effect, RPCE rpce, ChunkPlaybackInfo playbackInfo, Dictionary<ulong, ulong> replacements) {
-            RPCEInfo newInfo = new RPCEInfo {PlaybackInfo = playbackInfo, Model = rpce.Data.Model};
-            newInfo.Model = Combo.GetReplacement(newInfo.Model, replacements);
+        public static void AddRPCE(EffectInfo effect, teEffectComponentParticle rpce, ChunkPlaybackInfo playbackInfo, Dictionary<ulong, ulong> replacements) {
+            RPCEInfo newInfo = new RPCEInfo { PlaybackInfo = playbackInfo, Model = rpce.Header.Model };
+            if (replacements.ContainsKey(newInfo.Model)) newInfo.Model = replacements[newInfo.Model];
             effect.RPCEs.Add(newInfo);
         }
 
-        public static void AddSSCE(EffectInfo effectInfo, SSCE ssce, Type lastType, Dictionary<ulong, ulong> replacements) {
-            ulong def = ssce.Data.TextureDefinition;
-            ulong mat = ssce.Data.Material;
-            def = Combo.GetReplacement(def, replacements);
-            mat = Combo.GetReplacement(mat, replacements);
-            if (lastType == typeof(RPCE)) {
-                RPCEInfo rpceInfo = effectInfo.RPCEs.Last();
+        public static void AddSSCE(EffectInfo effect, teEffectChunkShaderSetup ssce, System.Type lastType, Dictionary<ulong, ulong> replacements) {
+            ulong def = ssce.Header.MaterialData;
+            ulong mat = ssce.Header.Material;
+            if (replacements.ContainsKey(def)) def = replacements[def];
+            if (replacements.ContainsKey(mat)) mat = replacements[mat];
+
+            if (lastType == typeof(teEffectComponentParticle)) {
+                RPCEInfo rpceInfo = effect.RPCEs.Last();
                 rpceInfo.TextureDefiniton = def;
                 rpceInfo.Material = mat;
             }
-        }*/
+        }
 
         public static void AddSVCE(EffectInfo effect, teEffectComponentVoiceStimulus svce, ChunkPlaybackInfo playbackInfo, Dictionary<ulong, ulong> replacements) {
             SVCEInfo newInfo = new SVCEInfo {PlaybackInfo = playbackInfo, VoiceStimulus = svce.Header.VoiceStimulus};
@@ -190,6 +192,10 @@ namespace DataTool.Helper {
                 AddNECE(effectInfo, entity, chunk.Key, replacements);
             } else if (chunk.Value is teEffectComponentVoiceStimulus voiceStimulus) {
                 AddSVCE(effectInfo, voiceStimulus, chunk.Key, replacements);
+            } else if (chunk.Value is teEffectComponentParticle particle) {
+                AddRPCE(effectInfo, particle, chunk.Key, replacements);
+            } else if (chunk.Value is teEffectChunkShaderSetup shaderSetup) {
+                AddSSCE(effectInfo, shaderSetup, chunk.Key.PreviousChunk?.GetType(), replacements);
             }
 
             // if (chunk.Value.GetType() == typeof(RPCE)) {
@@ -278,6 +284,82 @@ namespace DataTool.Helper {
                 FECEs = new List<FECEInfo>();
                 RPCEs = new List<RPCEInfo>();
                 SVCEs = new List<SVCEInfo>();
+            }
+
+            private bool? cachedHasModels { get; set; }
+            private bool? cachedHasSounds { get; set; }
+
+            public bool HasModels(Combo.ComboInfo info) {
+                if (!cachedHasModels.HasValue) {
+                    cachedHasModels = false;
+
+                    if (DMCEs.Count > 0) cachedHasModels = true;
+                    if (NECEs.Count > 0) cachedHasModels = true;
+                    if (RPCEs.Count > 0) cachedHasModels = true;
+
+                    if (cachedHasModels.Value) {
+                        return true;
+                    }
+
+                    foreach (var cece in CECEs) {
+                        Combo.AnimationAsset animationInfo = info.m_animations[cece.Animation];
+                        if (info.m_effects.TryGetValue(animationInfo.m_effect, out var effectInfo) || info.m_animationEffects.TryGetValue(animationInfo.m_effect, out effectInfo)) {
+                            cachedHasModels = effectInfo.Effect.HasModels(info);
+                            if (cachedHasModels.Value) {
+                                return true;
+                            }
+                        }
+                    }
+
+                    foreach (var fece in FECEs) {
+                        if (info.m_effects.TryGetValue(fece.GUID, out var effectInfo) || info.m_animationEffects.TryGetValue(fece.GUID, out effectInfo)) {
+                            cachedHasModels = effectInfo.Effect.HasModels(info);
+                            if (cachedHasModels.Value) {
+                                return true;
+                            }
+                        }
+                    }
+
+                    return false;
+                }
+
+                return cachedHasModels.Value;
+            }
+
+            public bool HasSounds(Combo.ComboInfo info) {
+                if (!cachedHasSounds.HasValue) {
+                    cachedHasSounds = false;
+
+                    if (SVCEs.Count > 0) cachedHasSounds = true;
+                    if (OSCEs.Count > 0) cachedHasSounds = true;
+
+                    if (cachedHasSounds.Value) {
+                        return true;
+                    }
+
+                    foreach (var cece in CECEs) {
+                        Combo.AnimationAsset animationInfo = info.m_animations[cece.Animation];
+                        if (info.m_effects.TryGetValue(animationInfo.m_effect, out var effectInfo) || info.m_animationEffects.TryGetValue(animationInfo.m_effect, out effectInfo)) {
+                            cachedHasSounds = effectInfo.Effect.HasModels(info);
+                            if (cachedHasSounds.Value) {
+                                return true;
+                            }
+                        }
+                    }
+
+                    foreach (var fece in FECEs) {
+                        if (info.m_effects.TryGetValue(fece.GUID, out var effectInfo) || info.m_animationEffects.TryGetValue(fece.GUID, out effectInfo)) {
+                            cachedHasSounds = effectInfo.Effect.HasModels(info);
+                            if (cachedHasSounds.Value) {
+                                return true;
+                            }
+                        }
+                    }
+
+                    return false;
+                }
+
+                return cachedHasSounds.Value;
             }
         }
     }

@@ -718,6 +718,7 @@ namespace DataTool.FindLogic {
                     };
 
                     effectInfo.SetupEffect();
+                    teResourceGUID fxguid = (teResourceGUID) guid;
 
                     var effectComboInfo = new EffectInfoCombo(guid) { Effect = effectInfo };
                     if (guidType == 0x8F) {
@@ -787,6 +788,7 @@ namespace DataTool.FindLogic {
                                 lastParticleModel = 0;
                             }
                         }
+
                     }
 
                     break;

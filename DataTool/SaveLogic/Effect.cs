@@ -1,13 +1,14 @@
-﻿using System.Collections.Generic;
+using System.Collections.Generic;
 using System.IO;
 using DataTool.Helper;
 using TankLib;
 using TankLib.ExportFormats;
+using static DataTool.Helper.EffectParser;
 
 namespace DataTool.SaveLogic {
     public static class Effect {
         public class OverwatchEffect : IExportFormat {
-            public virtual string Extension => "oweffect";
+            public string Extension => "oweffect";
 
             public static void WriteTime(BinaryWriter writer, EffectParser.ChunkPlaybackInfo playbackInfo) {
                 writer.Write(playbackInfo.TimeInfo == null);
@@ -26,8 +27,8 @@ namespace DataTool.SaveLogic {
                 }
             }
 
-            public const ushort EffectVersionMajor = 1;
-            public const ushort EffectVersionMinor = 2;
+            public const ushort EffectVersionMajor = 2;
+            public const ushort EffectVersionMinor = 0;
 
             protected readonly FindLogic.Combo.ComboInfo Info;
             protected readonly FindLogic.Combo.EffectInfoCombo EffectInfo;
@@ -41,7 +42,7 @@ namespace DataTool.SaveLogic {
                 VoiceStimuli = voiceStimuli;
             }
 
-            public virtual void Write(Stream stream) {
+            public void Write(Stream stream) {
                 using (BinaryWriter writer = new BinaryWriter(stream)) {
                     WriteEffect(writer);
                 }
@@ -71,12 +72,13 @@ namespace DataTool.SaveLogic {
                     writer.Write(dmceInfo.Material);
                     writer.Write(dmceInfo.Model);
                     FindLogic.Combo.ModelAsset modelInfo = Info.m_models[dmceInfo.Model];
-                    writer.Write(Path.Combine("Models", modelInfo.GetName(), modelInfo.GetNameIndex() + ".owmdl"));
+                    writer.Write(Path.Combine("..", "..", "Models", modelInfo.GetName(), modelInfo.GetNameIndex() + ".owmdl"));
+                    writer.Write(Path.Combine("..", "..", "Models", modelInfo.GetName(), "Materials", teResourceGUID.AsIndexString(dmceInfo.Material) + ".owmat"));
                     if (dmceInfo.Animation == 0) {
                         writer.Write("null");
                     } else {
                         FindLogic.Combo.AnimationAsset animationInfo = Info.m_animations[dmceInfo.Animation];
-                        writer.Write(Path.Combine("Models", modelInfo.GetName(), OverwatchAnimationEffect.AnimationEffectDir, animationInfo.GetNameIndex(), animationInfo.GetNameIndex() + ".owanim"));
+                        writer.Write(Path.Combine("..", "..", "Models", modelInfo.GetName(), OverwatchAnimationEffect.AnimationEffectDir, animationInfo.GetNameIndex(), animationInfo.GetNameIndex() + ".owanim"));
                     }
                 }
 
@@ -96,21 +98,22 @@ namespace DataTool.SaveLogic {
 
                 foreach (EffectParser.NECEInfo neceInfo in effect.NECEs) {
                     WriteTime(writer, neceInfo.PlaybackInfo);
-                    writer.Write(neceInfo.GUID);
-                    writer.Write(teResourceGUID.Index(neceInfo.Identifier));
+                    writer.Write(teResourceGUID.AsIndexString(neceInfo.GUID));
+                    writer.Write(neceInfo.Identifier);
                     FindLogic.Combo.EntityAsset entityInfo = Info.m_entities[neceInfo.GUID];
-                    writer.Write(Path.Combine("Entities", entityInfo.GetName(), entityInfo.GetName() + ".owentity"));
+                    writer.Write(Path.Combine("..", "..", "Entities", entityInfo.GetName(), entityInfo.GetNameIndex() + ".owentity"));
                 }
 
                 foreach (EffectParser.RPCEInfo rpceInfo in effect.RPCEs) {
                     WriteTime(writer, rpceInfo.PlaybackInfo);
                     writer.Write(rpceInfo.Model);
                     // todo: make the materials work
-                    writer.Write(rpceInfo.Material);
+                    //writer.Write(teResourceGUID.AsIndexString(rpceInfo.Material));
                     FindLogic.Combo.ModelAsset modelInfo = Info.m_models[rpceInfo.Model];
                     //writer.Write(rpceInfo.TextureDefiniton);
+                    writer.Write(Path.Combine("..", "..", "Models", modelInfo.GetName(), "Materials", teResourceGUID.AsIndexString(rpceInfo.Material) + ".owmat"));
 
-                    writer.Write(Path.Combine("Models", modelInfo.GetName(), modelInfo.GetName() + ".owmdl"));
+                    writer.Write(Path.Combine("..", "..", "Models", modelInfo.GetName(), modelInfo.GetNameIndex() + ".owmdl"));
                 }
 
                 foreach (EffectParser.SVCEInfo svceInfo in effect.SVCEs) {
@@ -133,27 +136,57 @@ namespace DataTool.SaveLogic {
                         writer.Write(0);
                     }
                 }
+
+                foreach (EffectParser.FECEInfo feceInfo in effect.FECEs) {
+                    WriteTime(writer, feceInfo.PlaybackInfo);
+                    writer.Write(feceInfo.GUID);
+                    var isAnimEffect = false;
+                    if (!Info.m_effects.TryGetValue(feceInfo.GUID, out var effectInfo)) {
+                        isAnimEffect = true;
+                        if (!Info.m_animationEffects.TryGetValue(feceInfo.GUID, out effectInfo)) {
+                            writer.Write((byte) 0);
+                            continue;
+                        }
+                    }
+                    writer.Write(Path.Combine(isAnimEffect ? OverwatchAnimationEffect.AnimationEffectDir : "AnimationEffects", effectInfo.GetName(), effectInfo.GetNameIndex() + ".owanim"));
+                }
+
+                foreach (EffectParser.OSCEInfo osceInfo in effect.OSCEs) {
+                    WriteTime(writer, osceInfo.PlaybackInfo);
+                    writer.Write(teResourceGUID.Index(osceInfo.Sound));
+                    if (Info.m_sounds.TryGetValue(osceInfo.Sound, out var soundInfo) && soundInfo.SoundFiles != null) {
+                        writer.Write(soundInfo.SoundFiles.Count);
+                        foreach (var soundFile in soundInfo.SoundFiles.Values) {
+                            writer.Write(Path.Combine("Sounds", Info.m_soundFiles[soundFile].GetName() + ".ogg"));
+                        }
+                    } else {
+                        writer.Write(0);
+                    }
+                }
             }
         }
 
-        public class OverwatchAnimationEffect : OverwatchEffect {
-            public override string Extension => "owanim";
+        public class OverwatchAnimationEffect : IExportFormat {
+            public string Extension => "owanim";
 
             public const string AnimationEffectDir = "AnimationEffects";
 
+            protected readonly FindLogic.Combo.ComboInfo Info;
             protected readonly FindLogic.Combo.AnimationAsset Animation;
+            protected readonly FindLogic.Combo.EffectInfoCombo EffectInfo;
             protected readonly ulong Model;
 
-            public const ushort AnimVersionMajor = 1;
+            public const ushort AnimVersionMajor = 2;
             public const ushort AnimVersionMinor = 0;
 
             public OverwatchAnimationEffect(
                 FindLogic.Combo.ComboInfo info,
                 FindLogic.Combo.EffectInfoCombo animationEffect,
-                Dictionary<ulong, HashSet<FindLogic.Combo.VoiceLineInstanceInfo>> voiceStimuli,
                 FindLogic.Combo.AnimationAsset animation,
-                ulong model) : base(info, animationEffect, voiceStimuli) {
+                ulong model) {
+                Info = info;
                 Animation = animation;
+                EffectInfo = animationEffect;
                 Model = model;
             }
 
@@ -164,7 +197,7 @@ namespace DataTool.SaveLogic {
                 Reset = 2
             }
 
-            public override void Write(Stream stream) {
+            public void Write(Stream stream) {
                 using (BinaryWriter writer = new BinaryWriter(stream)) {
                     writer.Write(Extension);
                     writer.Write(AnimVersionMajor);
@@ -176,11 +209,9 @@ namespace DataTool.SaveLogic {
                     FindLogic.Combo.ModelAsset modelInfo = Info.m_models[Model];
 
 
-                    writer.Write(Path.Combine("Models", modelInfo.GetName(), "Animations", Animation.m_priority.ToString(), Animation.m_group.ToString(), Animation.GetNameIndex() + ".owanimclip"));
+                    writer.Write(Path.Combine("Models", modelInfo.GetName(), "Animations", Animation.m_priority.ToString(), Animation.GetNameIndex() + ".seanim"));
                     writer.Write(Path.Combine("Models", modelInfo.GetName(), modelInfo.GetNameIndex() + ".owmdl"));
-
-                    // wrap oweffect
-                    WriteEffect(writer);
+                    writer.Write(Path.Combine(AnimationEffectDir, Animation.GetNameIndex(), EffectInfo.GetNameIndex() + ".oweffect"));
                 }
             }
         }
@@ -209,7 +240,7 @@ namespace DataTool.SaveLogic {
 
                     FindLogic.Combo.ModelAsset modelInfo = Info.m_models[Model];
 
-                    writer.Write(Path.Combine("Models", modelInfo.GetName(), OverwatchAnimationEffect.AnimationEffectDir, Animation.GetNameIndex(), Animation.GetNameIndex() + ".oweffect"));
+                    writer.Write(Path.Combine("Models", modelInfo.GetName(), OverwatchAnimationEffect.AnimationEffectDir, Animation.GetNameIndex(), Animation.GetNameIndex() + $".{Extension}")); // so I can change it in DataTool and not go mad
                 }
             }
         }
