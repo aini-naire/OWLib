@@ -251,6 +251,27 @@ namespace DataTool.SaveLogic {
                         }
                     }
 
+                    // Extension 2.2 - Map Environment
+                    if (Sky.m_EAE71612 != 0) {
+                        FindLogic.Combo.ModelAsset skyModelInfo = Info.m_models[Sky.m_EAE71612];
+                        string skyModelFile = GetModelPath(skyModelInfo);
+                        writer.Write(skyModelFile);
+                        if (Sky.m_FF76B5BA != 0) {
+                            FindLogic.Combo.ModelLookAsset skyModelLookInfo = Info.m_modelLooks[Sky.m_FF76B5BA];
+                            string skyModelLookFile = GetModelLookMatPath(skyModelInfo, skyModelLookInfo);
+                            writer.Write(skyModelLookFile);
+                        } else {
+                            writer.Write(string.Empty);
+                        }
+                    } else {
+                        writer.Write(string.Empty);
+                        writer.Write(string.Empty);
+                    }
+
+                    writer.Write(Sun.m_color);
+                    writer.Write(Sun.m_A1C4B45C);
+                    writer.Write(GetSunBlenderRotation(Sun.m_rotation));
+
                     writer.Write(Effects.Header.PlaceableCount); // nr Sounds
 
                     // Extension 1.3 - Effects
@@ -274,27 +295,6 @@ namespace DataTool.SaveLogic {
 
                         writer.Write($@"{(isAnimEffect ? "AnimationEffects" : "Effects")}\{effectInfo.GetName()}\{effectInfo.GetNameIndex()}.oweffect");
                     }
-
-                    // Extension 2.2 - Map Environment
-                    if (Sky.m_EAE71612 != 0) {
-                        FindLogic.Combo.ModelAsset skyModelInfo = Info.m_models[Sky.m_EAE71612];
-                        string skyModelFile = GetModelPath(skyModelInfo);
-                        writer.Write(skyModelFile);
-                        if (Sky.m_FF76B5BA != 0) {
-                            FindLogic.Combo.ModelLookAsset skyModelLookInfo = Info.m_modelLooks[Sky.m_FF76B5BA];
-                            string skyModelLookFile = GetModelLookMatPath(skyModelInfo, skyModelLookInfo);
-                            writer.Write(skyModelLookFile);
-                        } else {
-                            writer.Write(string.Empty);
-                        }
-                    } else {
-                        writer.Write(string.Empty);
-                        writer.Write(string.Empty);
-                    }
-
-                    writer.Write(Sun.m_color);
-                    writer.Write(Sun.m_A1C4B45C);
-                    writer.Write(GetSunBlenderRotation(Sun.m_rotation));
 
                 }
             }
